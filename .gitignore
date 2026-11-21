@@ -1,0 +1,9 @@
+/ics2qr
+/ics2qr.exe
+/dist/
+/data/
+
+# Konzept und README bleiben versioniert, auch wenn global *.md ignoriert wird.
+!README.md
+!docs/
+!docs/**

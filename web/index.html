@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ics2QR</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img id="logo" alt="" hidden>
+      <div>
+        <p class="eyebrow">Ics2QR</p>
+        <h1 id="title">Termine</h1>
+      </div>
+    </div>
+    <div class="top-actions">
+      <label class="screen-pick" id="screen-pick-label" hidden>
+        Monitor
+        <select id="screen-pick" aria-label="Monitor für die Patientenanzeige"></select>
+      </label>
+      <button type="button" id="open-display" class="ghost">Patientenanzeige</button>
+      <nav class="tabs" aria-label="Bereiche">
+        <button type="button" id="tab-termine" aria-pressed="true">Termine</button>
+        <button type="button" id="tab-verwaltung" aria-pressed="false">Verwaltung</button>
+      </nav>
+    </div>
+  </header>
+  <p id="status" class="status" role="status" hidden></p>
+
+  <main>
+    <div id="view-termine">
+      <div class="desk">
+          <section class="card desk-cal" aria-labelledby="cal-heading">
+            <div class="card-head">
+              <h2 id="cal-heading">Datum</h2>
+              <div class="span-switch" id="span-switch" role="group" aria-label="Zeitraum"></div>
+            </div>
+            <div class="cal-nav">
+              <div class="cal-move">
+                <button type="button" id="cal-prev" class="nav-btn" aria-label="Vorheriger Zeitraum">‹</button>
+                <p id="cal-title"></p>
+                <button type="button" id="cal-next" class="nav-btn" aria-label="Nächster Zeitraum">›</button>
+              </div>
+              <button type="button" id="cal-today" class="ghost">Heute</button>
+            </div>
+            <div id="calendar"></div>
+            <p id="chosen-day" class="chosen"></p>
+          </section>
+
+          <form id="appt-form" class="card desk-form" autocomplete="off">
+            <h2 id="form-heading">Termin</h2>
+            <label>Leistung
+              <input id="summary" list="service-list" maxlength="200" required placeholder="Zum Beispiel Blut abnehmen">
+            </label>
+            <datalist id="service-list"></datalist>
+            <div class="grid-2">
+              <label>Uhrzeit
+                <input id="time" type="time" value="08:00" required>
+              </label>
+              <label>Dauer in Minuten
+                <input id="duration" type="number" min="1" max="527040" step="1" value="30" required>
+              </label>
+            </div>
+            <div id="presets" class="presets"></div>
+            <p id="end-preview" class="end-preview"></p>
+            <label class="check">
+              <input id="multiday" type="checkbox">
+              Mehrtägig, anderes Enddatum
+            </label>
+            <div id="enddate-wrap" hidden>
+              <label>Enddatum
+                <input id="enddate" type="date">
+              </label>
+              <p id="end-hint" class="hint">Die Uhrzeit des Endes ergibt sich aus Beginn und Dauer. Das Enddatum legt den Tag fest.</p>
+            </div>
+            <fieldset id="comment-box">
+              <legend>Kommentare</legend>
+              <div id="comments"></div>
+            </fieldset>
+            <label>Freitext
+              <textarea id="note" rows="2" maxlength="500" placeholder="Zum Beispiel: Dokument X mitbringen"></textarea>
+            </label>
+            <div class="row">
+              <button type="submit" id="save-appt" class="primary">Termin hinzufügen</button>
+              <button type="button" id="cancel-edit" class="ghost" hidden>Abbrechen</button>
+            </div>
+          </form>
+
+          <section class="card desk-list">
+            <h2>Termine dieser Eingabe</h2>
+            <p class="hint">Die Termine bleiben nur in dieser Eingabe. Der QR-Code erscheint auf der Patientenanzeige. Welcher Monitor das ist, steht oben bei „Monitor“.</p>
+            <ul id="appt-list" class="appt-list"></ul>
+            <p id="empty-list" class="hint">Noch kein Termin.</p>
+            <div class="row">
+              <button type="button" id="make-qr" class="primary" disabled>QR-Code erzeugen</button>
+              <button type="button" id="clear-all" class="danger">Eingabe löschen</button>
+            </div>
+            <button type="button" id="download-ics" class="ghost" hidden>ICS-Datei speichern</button>
+          </section>
+      </div>
+    </div>
+
+    <form id="view-admin" class="admin" hidden autocomplete="off">
+      <div class="layout">
+        <section class="card">
+          <h2>Praxis</h2>
+          <label>Name
+            <input id="practice-name" maxlength="120" placeholder="Praxis am See">
+          </label>
+          <p class="hint">Erscheint in der Kopfzeile und als Name des Kalenders.</p>
+          <label>Adresse
+            <textarea id="practice-address" rows="4" maxlength="500" placeholder="Seestraße 2&#10;12345 Ort"></textarea>
+          </label>
+          <p class="hint">Erscheint im Kalender als Ort.</p>
+          <label>Logo
+            <input id="logo-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp">
+          </label>
+          <div class="logo-row">
+            <img id="logo-preview" alt="Praxislogo" hidden>
+            <button type="button" id="logo-remove" class="ghost" hidden>Logo entfernen</button>
+          </div>
+          <p class="hint">PNG, JPEG, GIF oder WebP, höchstens 1,5 MB. Das Logo erscheint nur hier, nicht im QR-Code. Es wird sofort gespeichert.</p>
+          <label>Datumsansicht
+            <select id="span-default">
+              <option value="month">Monat</option>
+              <option value="quarter">Quartal</option>
+              <option value="halfyear">Halbjahr</option>
+              <option value="year">Jahr</option>
+            </select>
+          </label>
+          <p class="hint">So öffnet sich die Auswahl. In der Termineingabe lässt sich die Ansicht umschalten, ohne diese Einstellung zu ändern.</p>
+        </section>
+
+        <section class="card">
+          <h2>Leistungen</h2>
+          <p class="hint">Alphabetische Liste. In der Eingabe wählbar, Freitext bleibt möglich.</p>
+          <div class="add-row">
+            <input id="service-input" maxlength="120" placeholder="Neue Leistung">
+            <button type="button" id="service-add" class="ghost">Hinzufügen</button>
+          </div>
+          <ul id="service-items" class="edit-list"></ul>
+
+          <h2>Kommentare</h2>
+          <p class="hint">Alphabetische Liste. Pro Termin auswählbar, zusätzlich Freitext.</p>
+          <div class="add-row">
+            <input id="comment-input" maxlength="120" placeholder="Neuer Kommentar">
+            <button type="button" id="comment-add" class="ghost">Hinzufügen</button>
+          </div>
+          <ul id="comment-items" class="edit-list"></ul>
+
+          <div class="row">
+            <button type="submit" class="primary">Speichern</button>
+          </div>
+        </section>
+      </div>
+    </form>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

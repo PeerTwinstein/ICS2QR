@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patientenanzeige</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/anzeige.css">
+</head>
+<body>
+  <header class="brand">
+    <img id="logo" alt="" hidden>
+    <h1 id="name">Termine</h1>
+  </header>
+  <main>
+    <p id="idle">Der Code erscheint hier.</p>
+    <div id="frame" class="frame" hidden>
+      <img id="qr" alt="QR-Code mit den Kalenderterminen">
+    </div>
+    <p id="hint" hidden>Bitte mit der Kamera scannen. Der Kalender übernimmt die Termine.</p>
+  </main>
+  <button type="button" id="full">Vollbild</button>
+  <script src="/anzeige.js"></script>
+</body>
+</html>
