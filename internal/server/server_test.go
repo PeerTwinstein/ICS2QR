@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"ics2qr/internal/settings"
 )
@@ -88,6 +89,17 @@ func TestSettingsAndQR(t *testing.T) {
 	if !shown.Active || shown.PNGBase64 != qr.PNGBase64 || shown.PracticeName != "Praxis Am See" {
 		t.Fatalf("display %#v", shown)
 	}
+	if qr.ExpiresAt == "" || shown.ExpiresAt != qr.ExpiresAt {
+		t.Fatalf("expiry qr %q display %q", qr.ExpiresAt, shown.ExpiresAt)
+	}
+	deadline, err := time.Parse(time.RFC3339Nano, shown.ExpiresAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	until := time.Until(deadline)
+	if until < 90*time.Second || until > displayTTL+5*time.Second {
+		t.Fatalf("expiry in %s", until)
+	}
 	etag := rec.Header().Get("ETag")
 	req := httptest.NewRequest(http.MethodGet, "/api/display", nil)
 	req.Header.Set("If-None-Match", etag)
@@ -148,6 +160,47 @@ func TestLogoUpload(t *testing.T) {
 	rec = call(h, http.MethodGet, "/logo", nil, "")
 	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/png" {
 		t.Fatalf("get logo %d %s", rec.Code, rec.Header().Get("Content-Type"))
+	}
+}
+
+func TestBoardExpiresAfterTwoMinutes(t *testing.T) {
+	start := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
+	clock := start
+	b := &board{now: func() time.Time { return clock }}
+
+	expires := b.show("png", "Praxis")
+	if !expires.Equal(start.Add(displayTTL)) {
+		t.Fatalf("expires %s", expires)
+	}
+	_, png, name, got := b.get()
+	if png != "png" || name != "Praxis" || !got.Equal(expires) {
+		t.Fatalf("visible png %q name %q expires %s", png, name, got)
+	}
+
+	clock = start.Add(displayTTL - time.Second)
+	if _, png, _, _ = b.get(); png != "png" {
+		t.Fatal("expired one second early")
+	}
+
+	clock = start.Add(displayTTL)
+	rev, png, name, got := b.get()
+	if png != "" || name != "" || !got.IsZero() {
+		t.Fatalf("still visible png %q name %q", png, name)
+	}
+	if rev2, _, _, _ := b.get(); rev2 != rev {
+		t.Fatal("second read changed the revision")
+	}
+
+	clock = start.Add(displayTTL)
+	b.show("erneuert", "Praxis")
+	clock = start.Add(2*displayTTL - time.Second)
+	if _, png, _, _ = b.get(); png != "erneuert" {
+		t.Fatal("a new code reused the old deadline")
+	}
+	b.clear()
+	clock = clock.Add(displayTTL)
+	if _, png, _, _ = b.get(); png != "" {
+		t.Fatal("cleared code came back")
 	}
 }
 

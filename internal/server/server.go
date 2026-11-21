@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/skip2/go-qrcode"
@@ -25,10 +26,11 @@ const (
 	maxSummary      = 200
 	maxNote         = 500
 	maxComments     = 20
+	displayTTL      = 2 * time.Minute
 )
 
 // New builds the application handler. Appointments are not stored.
-// The patient display keeps only the current QR code in memory.
+// The patient display keeps only the current QR code in memory and drops it after two minutes.
 func New(store *settings.Store) http.Handler {
 	screen := &board{}
 	mux := http.NewServeMux()
@@ -117,14 +119,15 @@ func New(store *settings.Store) http.Handler {
 			return
 		}
 		encoded := base64.StdEncoding.EncodeToString(png)
-		screen.show(encoded, cfg.PracticeName)
+		expires := screen.show(encoded, cfg.PracticeName)
 		writeJSON(w, http.StatusOK, qrResponse{
 			ICS:       text,
 			PNGBase64: encoded,
+			ExpiresAt: formatExpiry(expires),
 		})
 	})
 	mux.HandleFunc("GET /api/display", func(w http.ResponseWriter, r *http.Request) {
-		rev, png, name := screen.get()
+		rev, png, name, expires := screen.get()
 		tag := fmt.Sprintf(`"%d"`, rev)
 		w.Header().Set("ETag", tag)
 		w.Header().Set("Cache-Control", "no-store")
@@ -132,11 +135,15 @@ func New(store *settings.Store) http.Handler {
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		writeJSON(w, http.StatusOK, displayResponse{
+		resp := displayResponse{
 			Active:       png != "",
 			PNGBase64:    png,
 			PracticeName: name,
-		})
+		}
+		if !expires.IsZero() {
+			resp.ExpiresAt = formatExpiry(expires)
+		}
+		writeJSON(w, http.StatusOK, resp)
 	})
 	mux.HandleFunc("DELETE /api/display", func(w http.ResponseWriter, r *http.Request) {
 		screen.clear()
@@ -167,28 +174,42 @@ type apptIn struct {
 type qrResponse struct {
 	ICS       string `json:"ics"`
 	PNGBase64 string `json:"pngBase64"`
+	ExpiresAt string `json:"expiresAt"`
 }
 
 type displayResponse struct {
 	Active       bool   `json:"active"`
 	PNGBase64    string `json:"pngBase64,omitempty"`
 	PracticeName string `json:"practiceName,omitempty"`
+	ExpiresAt    string `json:"expiresAt,omitempty"`
 }
 
-// board is the QR code currently shown to the patient. It is not written to disk.
+// board is the QR code currently shown to the patient.
+// It is not written to disk and disappears after displayTTL.
 type board struct {
 	mu       sync.Mutex
 	revision uint64
 	png      string
 	name     string
+	expires  time.Time
+	now      func() time.Time
 }
 
-func (b *board) show(png, name string) {
+func (b *board) clock() time.Time {
+	if b.now != nil {
+		return b.now()
+	}
+	return time.Now()
+}
+
+func (b *board) show(png, name string) time.Time {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.revision++
 	b.png = png
 	b.name = name
+	b.expires = b.clock().Add(displayTTL)
+	return b.expires
 }
 
 func (b *board) clear() {
@@ -200,12 +221,28 @@ func (b *board) clear() {
 	b.revision++
 	b.png = ""
 	b.name = ""
+	b.expires = time.Time{}
 }
 
-func (b *board) get() (uint64, string, string) {
+func (b *board) get() (uint64, string, string, time.Time) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.revision, b.png, b.name
+	b.expireLocked()
+	return b.revision, b.png, b.name, b.expires
+}
+
+func formatExpiry(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.000Z07:00")
+}
+
+func (b *board) expireLocked() {
+	if b.png == "" || b.expires.IsZero() || b.clock().Before(b.expires) {
+		return
+	}
+	b.revision++
+	b.png = ""
+	b.name = ""
+	b.expires = time.Time{}
 }
 
 func buildICS(cfg settings.Settings, apps []apptIn) (string, error) {

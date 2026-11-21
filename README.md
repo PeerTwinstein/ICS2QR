@@ -29,7 +29,7 @@ Als Dienst startet das Programm ohne Browser.
 
 **Termine.** Datum wählen, Leistung, Uhrzeit und Dauer eintragen. Dauert ein Termin über den Tag hinaus, lässt sich ein anderes Enddatum setzen. Kommentare kommen aus der vorbereiteten Liste oder als Freitext. Mehrere Termine landen in einem QR-Code, höchstens 30. Den Code zeigt die Seite selbst, und auf Wunsch ein zweites Fenster, die Patientenanzeige. Die ICS-Datei lässt sich auch speichern.
 
-Gespeichert werden Praxisdaten und Logo. Die einzelnen Termine bleiben in der aktuellen Sitzung. Die Patientenanzeige hält nur den gerade erzeugten QR-Code im Speicher.
+Gespeichert werden Praxisdaten und Logo. Die einzelnen Termine bleiben in der aktuellen Sitzung. Die Patientenanzeige hält nur den gerade erzeugten QR-Code im Speicher. Nach zwei Minuten verschwindet er von selbst, damit der nächste Patient die Termine nicht sieht.
 
 **Verwaltung.** Praxisname, Adresse und Logo. Der Name erscheint in der Kopfzeile und als Kalendername, die Adresse als Ort im Termin. Das Logo (PNG, JPEG, GIF oder WebP, höchstens 1,5 MB) erscheint nur in der Oberfläche. Leistungen und Kommentare sind Listen und werden alphabetisch sortiert. Die Datumsansicht startet als Monat, Quartal, Halbjahr oder Jahr.
 
@@ -43,3 +43,9 @@ go test ./...
 ```
 
 Unter Linux heißt die Datei `ics2qr`.
+
+Fertige Pakete für Windows und Linux liegen bei den [Veröffentlichungen](https://github.com/PeerTwinstein/ICS2QR/releases).
+
+## Lizenz
+
+[Apache License 2.0](LICENSE). Copyright 2026 Peer Twinstein.

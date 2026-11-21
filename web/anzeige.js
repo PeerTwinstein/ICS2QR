@@ -3,10 +3,12 @@ const logoEl = document.getElementById("logo");
 const idleEl = document.getElementById("idle");
 const frameEl = document.getElementById("frame");
 const qrEl = document.getElementById("qr");
-const hintEl = document.getElementById("hint");
+const captionEl = document.getElementById("caption");
+const remainEl = document.getElementById("remain");
 const fullBtn = document.getElementById("full");
 
 let etag = "";
+let expiresAt = 0;
 
 async function loadBrand() {
   try {
@@ -26,20 +28,40 @@ async function loadBrand() {
   }
 }
 
+function hideCode() {
+  expiresAt = 0;
+  qrEl.removeAttribute("src");
+  frameEl.hidden = true;
+  captionEl.hidden = true;
+  idleEl.hidden = false;
+}
+
 function showCode(data) {
   if (!data || !data.active || !data.pngBase64) {
-    qrEl.removeAttribute("src");
-    frameEl.hidden = true;
-    hintEl.hidden = true;
-    idleEl.hidden = false;
+    hideCode();
     return;
   }
   if (data.practiceName) nameEl.textContent = data.practiceName;
   const src = "data:image/png;base64," + data.pngBase64;
   if (qrEl.src !== src) qrEl.src = src;
+  expiresAt = data.expiresAt ? Date.parse(data.expiresAt) : 0;
   frameEl.hidden = false;
-  hintEl.hidden = false;
+  captionEl.hidden = false;
   idleEl.hidden = true;
+  paintHint();
+}
+
+function paintHint() {
+  if (frameEl.hidden) return;
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
+    remainEl.textContent = "";
+    return;
+  }
+  const sec = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, "0");
+  const text = "Der Code verschwindet in " + m + ":" + s + ".";
+  if (remainEl.textContent !== text) remainEl.textContent = text;
 }
 
 async function poll() {
@@ -70,3 +92,4 @@ document.addEventListener("fullscreenchange", () => {
 loadBrand();
 poll();
 setInterval(poll, 400);
+setInterval(paintHint, 250);

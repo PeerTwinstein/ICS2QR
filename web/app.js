@@ -411,10 +411,27 @@ function resetForm() {
   refreshSchedule();
 }
 
+let qrEpoch = 0;
+let qrHideTimer = 0;
+
 function hideQR() {
+  qrEpoch++;
+  clearTimeout(qrHideTimer);
+  qrHideTimer = 0;
   state.ics = "";
   $("download-ics").hidden = true;
   fetch("/api/display", { method: "DELETE" }).catch(() => {});
+}
+
+function armQRExpiry(expiresAt) {
+  const epoch = ++qrEpoch;
+  clearTimeout(qrHideTimer);
+  const wait = Math.max(0, Date.parse(expiresAt) - Date.now());
+  qrHideTimer = setTimeout(() => {
+    qrHideTimer = 0;
+    if (epoch !== qrEpoch || !state.ics) return;
+    setStatus("Der QR-Code ist von der Patientenanzeige verschwunden.", "");
+  }, Number.isFinite(wait) ? wait : 2 * 60 * 1000);
 }
 
 let patientWin = null;
@@ -657,7 +674,8 @@ async function makeQR() {
     const data = await res.json();
     state.ics = data.ics;
     $("download-ics").hidden = false;
-    let message = "Der QR-Code liegt auf der Patientenanzeige.";
+    if (data.expiresAt) armQRExpiry(data.expiresAt);
+    let message = "Der QR-Code liegt auf der Patientenanzeige und verschwindet nach 2 Minuten.";
     if (!displayOpen) message += " Das Fenster dazu öffnet der Knopf „Patientenanzeige“.";
     if (pending) message += " Die noch nicht übernommene Leistung ist nicht enthalten.";
     setStatus(message, displayOpen && !pending ? "ok" : "");
